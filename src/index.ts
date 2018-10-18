@@ -3,10 +3,12 @@ const app = express();
 import IPFS from 'ipfs';
 const node = new IPFS();
 import Web3 from 'web3';
-const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.commontheory.io'));
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:7454'));
 import dns from 'dns';
 
-const contract = new web3.eth.Contract([], '');
+const ABI = require('../CommonHosting.abi.json');
+
+const contract = new web3.eth.Contract(ABI, '0xcfa1ae5c57128fec5b15952aac3e7362dda233cf');
 
 node.on('ready', () => {
   console.log('IPFS node ready.')
@@ -31,7 +33,12 @@ app.get('/', (req, res) => {
       return;
     }
     const address = ethlink.slice('ethlink='.length);
-    const path = await contract.methods.pathForDomainAndAddress(host, address).call();
-    res.pipe(node.files.catReadableStream(path));
+    try {
+      const path = await contract.methods.pathForDomainAndAddress(host, address).call();
+      console.log(path);
+      res.pipe(node.files.catReadableStream(path));
+    } catch (err) {
+      res.send(err);
+    }
   });
 });
