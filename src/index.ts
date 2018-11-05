@@ -1,44 +1,59 @@
-import express from 'express';
-const app = express();
 import IPFS from 'ipfs';
 const node = new IPFS();
 import Web3 from 'web3';
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:7454'));
+const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.commontheory.io'));
 import dns from 'dns';
 
 const ABI = require('../CommonHosting.abi.json');
 
-const contract = new web3.eth.Contract(ABI, '0xcfa1ae5c57128fec5b15952aac3e7362dda233cf');
+const RINKEBY_ADDRESS = '0x17c6e3eb572d41f7c236e7f6d5cce97dcd65887a';
 
-node.on('ready', () => {
-  console.log('IPFS node ready.')
-  app.listen(3000, () => console.log('http server listening on port 3000'));
+const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
+
+node.on('ready', async () => {
+  console.log('IPFS node ready.');
+  try {
+    const cid = await node.name.resolve(`/ipns/commontheory.io`);
+    console.log(cid);
+    console.log(await node.block.get(cid));
+    pinItems();
+    // setInterval(pinItems, 60000);
+  } catch (err) {
+    console.log('Encountered error', err);
+    process.exit(1);
+  }
 });
+
+async function pinItems() {
+  const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
+  const domainCount = await contract.methods.domainCount().call();
+  for (let x = 0; x < domainCount.length; x++) {
+    const domain = await contract.methods.domains(x).call();
+    const paid: boolean = await contract.methods.isDomainHosted(domain.name);
+    // Don't pin if not paid up
+    if (!paid) return;
+    // Don't pin if ethlink address mismatch
+    if (await ethlinkAddressForDomain(domain.name) !== domain.creator) return;
+    // Otherwise pin
+    console.log(await node.block.get(`/ipns/${domain}`));
+  }
+}
 
 const ETHLINK_REGEX = /^ethlink=0x[a-fA-F0-9]{40}$/;
 
-app.get('/', (req, res) => {
-  const host = 'commontheory.io' || req.headers.host;
-  dns.resolveTxt(host, async (err, records) => {
-    if (err) {
-      res.send(err);
-      return;
-    }
-    const flatRecords = [].concat(...records);
-    const ethlink = flatRecords.find((item: string) => {
-      return ETHLINK_REGEX.test(item);
+function ethlinkAddressForDomain(host: string) {
+  return new Promise((rs, rj) => {
+    dns.resolveTxt(host, (err, records) => {
+      if (err) return rj(err);
+      const flatRecords = [].concat(...records);
+      const ethlink = flatRecords.find((item: string) => {
+        return ETHLINK_REGEX.test(item);
+      });
+      if (!ethlink) {
+        rj('Unable to find ethlink TXT record for domain');
+        return;
+      }
+      rs(ethlink.slice('ethlink='.length));
     });
-    if (!ethlink) {
-      res.send('Unable to find ethlink TXT record for domain');
-      return;
-    }
-    const address = ethlink.slice('ethlink='.length);
-    try {
-      const path = await contract.methods.pathForDomainAndAddress(host, address).call();
-      console.log(path);
-      res.pipe(node.files.catReadableStream(path));
-    } catch (err) {
-      res.send(err);
-    }
   });
-});
+}
