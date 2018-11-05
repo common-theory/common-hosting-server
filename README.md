@@ -1,3 +1,3 @@
-# common-hosting-server
+# common-hosting-server [![Build Status](https://travis-ci.org/common-theory/common-hosting-server.svg?branch=master)](https://travis-ci.org/common-theory/common-hosting-server)
 
-A NodeJS webserver for common-hosting.
+A modified IPFS server pinning contents from [`common-hosting`](https://github.com/common-theory/common-hosting).
