@@ -1,0 +1,13 @@
+sudo: required
+
+language: node_js
+
+install: true
+
+services:
+  - docker
+
+script:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker build . -t ctheory/common-hosting-server:latest
+  - docker push ctheory/common-hosting-server:latest
