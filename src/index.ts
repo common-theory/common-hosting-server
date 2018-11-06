@@ -3,6 +3,7 @@ const node = new IPFS();
 import Web3 from 'web3';
 const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.commontheory.io'));
 import dns from 'dns';
+import dnslink from './dnslink';
 
 const ABI = require('../CommonHosting.abi.json');
 
@@ -13,17 +14,21 @@ const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
 node.on('ready', async () => {
   console.log('IPFS node ready.');
   try {
-    const cid = await node.name.resolve(`/ipns/commontheory.io`);
-    console.log(cid);
-    console.log(await node.block.get(cid));
-    pinItems();
+    const ref = await dnslink('commontheory.io');
+    // const cid
+    console.log(await node.pin.add(ref) || 'test');
+    // pinItems();
     // setInterval(pinItems, 60000);
+
   } catch (err) {
     console.log('Encountered error', err);
     process.exit(1);
   }
 });
 
+/**
+ * Pin ipfs/ipns paths in common hosting contract.
+ **/
 async function pinItems() {
   const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
   const domainCount = await contract.methods.domainCount().call();
@@ -41,6 +46,9 @@ async function pinItems() {
 
 const ETHLINK_REGEX = /^ethlink=0x[a-fA-F0-9]{40}$/;
 
+/**
+ * Determine if a txt record exists in the DNS. This should
+ **/
 function ethlinkAddressForDomain(host: string) {
   return new Promise((rs, rj) => {
     dns.resolveTxt(host, (err, records) => {
