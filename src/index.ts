@@ -1,23 +1,36 @@
 import IPFS from 'ipfs';
 const node = new IPFS();
 import Web3 from 'web3';
-const web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.commontheory.io'));
+const RPC_URL = process.env.ETH_RPC_URL || 'https://rinkeby.commontheory.io';
+const web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
 import dns from 'dns';
 import dnslink from 'dnslink';
 
 const ABI = require('../CommonHosting.abi.json');
 
-const RINKEBY_ADDRESS = '0x17c6e3eb572d41f7c236e7f6d5cce97dcd65887a';
+const RINKEBY_ADDRESS = '0x601fb36e4ea7d9ad7e9c16fe03ae75679513d8b3';
 
 const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
+
+async function loadDomains() {
+  const domainCount = await contract.methods.domainCount().call();
+  console.log(domainCount);
+  const domains = await Promise.all(Array.apply(null, Array(domainCount).map(async index => {
+    return await contract.methods.domains(index).call();
+  })));
+  console.log(domains);
+}
 
 node.on('ready', async () => {
   console.log('IPFS node ready.');
   try {
     const cid = await dnslink.resolve('commontheory.io');
-    console.log(await node.pin.add(cid) || 'test');
+    console.log(cid);
+    console.log(await node.pin.add(cid));
+    console.log('pinned');
     // pinItems();
     // setInterval(pinItems, 60000);
+    await loadDomains();
   } catch (err) {
     console.log('Encountered error', err);
     process.exit(1);
