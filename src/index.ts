@@ -14,12 +14,10 @@ const contract = new web3.eth.Contract(ABI, RINKEBY_ADDRESS);
 node.on('ready', async () => {
   console.log('IPFS node ready.');
   try {
-    const ref = await dnslink('commontheory.io');
-    // const cid
-    console.log(await node.pin.add(ref) || 'test');
+    const cid = await dnslink.resolve('commontheory.io');
+    console.log(await node.pin.add(cid) || 'test');
     // pinItems();
     // setInterval(pinItems, 60000);
-
   } catch (err) {
     console.log('Encountered error', err);
     process.exit(1);
